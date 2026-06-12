@@ -1,0 +1,275 @@
+name: 'Create or update Pull Request'
+description: 'Stages changes, commits to a (re)created branch, pushes it, and opens or updates a pull request via the GitHub CLI.'
+author: 'ModKit-org'
+
+branding:
+  icon: git-pull-request
+  color: blue
+
+inputs:
+  branch:
+    description: 'Name of the head branch to create or reuse for the pull request (e.g. "automated/update-icons" or "docs/v1.2.3").'
+    required: true
+  base-branch:
+    description: 'Base branch the PR should target. Defaults to the branch that triggered the workflow (`github.ref_name`).'
+    required: false
+    default: ${{ github.ref_name }}
+  commit-message:
+    description: 'Commit message used when there are staged changes to commit.'
+    required: true
+  pr-title:
+    description: 'Title of the pull request. Defaults to the commit message.'
+    required: false
+    default: ''
+  pr-body:
+    description: 'Body of the pull request. Multi-line strings are supported.'
+    required: false
+    default: ''
+  labels:
+    description: 'Labels to apply to the pull request. Accepts a comma- or newline-separated list (e.g. "automated,documentation").'
+    required: false
+    default: ''
+  paths:
+    description: 'Paths passed to `git add`. Defaults to `-A` (stage everything). Provide a newline- or space-separated list of paths to stage only specific files.'
+    required: false
+    default: '-A'
+  reset-branch:
+    description: 'If "true", reset the branch to the base branch before staging changes. Useful when the workflow regenerates content from scratch and the previous branch state should be discarded.'
+    required: false
+    default: 'false'
+  skip-if-no-changes:
+    description: 'If "true" (default), exit successfully without creating a PR when there are no changes to commit. If "false", the action fails when there is nothing to commit.'
+    required: false
+    default: 'true'
+  delete-branch-on-failure:
+    description: 'If "true" and a step inside this action fails after the branch has been pushed (e.g. `gh pr create` fails), the remote branch is deleted on the way out — but only when no open PR exists for it. Defaults to "false" so the pushed branch remains available for inspection / re-runs. Note: this only covers failures inside this action; failures in later caller steps must be handled by the caller via `if: failure()`.'
+    required: false
+    default: 'false'
+  git-user-name:
+    description: 'Git user.name used for the commit.'
+    required: false
+    default: 'github-actions[bot]'
+  git-user-email:
+    description: 'Git user.email used for the commit.'
+    required: false
+    default: 'github-actions[bot]@users.noreply.github.com'
+  sign-commit:
+    description: 'If "true", sign the commit using GPG (requires the runner to already be configured with a signing key). Defaults to "false".'
+    required: false
+    default: 'false'
+  no-verify:
+    description: 'If "true", pass `--no-verify` to `git commit` to skip pre-commit hooks.'
+    required: false
+    default: 'false'
+  github-token:
+    description: 'Token used to push the branch and create/update the pull request. Requires `contents: write` and `pull-requests: write`.'
+    required: true
+
+outputs:
+  pr-number:
+    description: 'Number of the pull request that was created or updated. Empty when no PR was created (e.g. no changes).'
+    value: ${{ steps.pr.outputs.pr-number }}
+  pr-url:
+    description: 'URL of the pull request that was created or updated.'
+    value: ${{ steps.pr.outputs.pr-url }}
+  branch:
+    description: 'The head branch used for the pull request.'
+    value: ${{ inputs.branch }}
+  created:
+    description: '"true" when a new pull request was created, otherwise "false".'
+    value: ${{ steps.pr.outputs.created }}
+  updated:
+    description: '"true" when an existing pull request was updated, otherwise "false".'
+    value: ${{ steps.pr.outputs.updated }}
+  changes-committed:
+    description: '"true" when changes were committed and pushed, "false" when there was nothing to commit.'
+    value: ${{ steps.commit.outputs.changes-committed }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate inputs
+      shell: bash
+      env:
+        BRANCH: ${{ inputs.branch }}
+        BASE_BRANCH: ${{ inputs.base-branch }}
+      run: |
+        set -euo pipefail
+        if [ -z "$BRANCH" ]; then
+          echo "::error::Input 'branch' is required."
+          exit 1
+        fi
+        if [ -z "$BASE_BRANCH" ]; then
+          echo "::error::Input 'base-branch' could not be resolved. Provide it explicitly."
+          exit 1
+        fi
+        if [ "$BRANCH" = "$BASE_BRANCH" ]; then
+          echo "::error::Input 'branch' ($BRANCH) must differ from 'base-branch' ($BASE_BRANCH)."
+          exit 1
+        fi
+
+    - name: Configure git identity
+      shell: bash
+      env:
+        GIT_USER_NAME: ${{ inputs.git-user-name }}
+        GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+      run: |
+        set -euo pipefail
+        git config user.name "$GIT_USER_NAME"
+        git config user.email "$GIT_USER_EMAIL"
+
+    - name: Prepare branch and commit changes
+      id: commit
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        BRANCH: ${{ inputs.branch }}
+        BASE_BRANCH: ${{ inputs.base-branch }}
+        COMMIT_MSG: ${{ inputs.commit-message }}
+        PATHS: ${{ inputs.paths }}
+        RESET_BRANCH: ${{ inputs.reset-branch }}
+        SKIP_IF_NO_CHANGES: ${{ inputs.skip-if-no-changes }}
+        SIGN_COMMIT: ${{ inputs.sign-commit }}
+        NO_VERIFY: ${{ inputs.no-verify }}
+      run: |
+        set -euo pipefail
+
+        # Make sure we have an up-to-date view of the remote.
+        git fetch origin "$BASE_BRANCH" --quiet || true
+        git fetch origin "$BRANCH" --quiet || true
+
+        if [ "$RESET_BRANCH" = "true" ]; then
+          # Discard any prior state on the branch and start fresh from the base.
+          git checkout -B "$BRANCH" "origin/$BASE_BRANCH"
+        else
+          # Reuse the branch in-place (preserves any local modifications already in the workspace).
+          git checkout -B "$BRANCH"
+        fi
+
+        # Stage changes. PATHS may contain "-A" or a list of paths.
+        # shellcheck disable=SC2086
+        git add $PATHS
+
+        if git diff --cached --quiet; then
+          if [ "$SKIP_IF_NO_CHANGES" = "true" ]; then
+            echo "::notice::No changes to commit, skipping PR creation."
+            echo "changes-committed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          else
+            echo "::error::No changes to commit."
+            exit 1
+          fi
+        fi
+
+        COMMIT_ARGS=()
+        if [ "$SIGN_COMMIT" = "true" ]; then
+          COMMIT_ARGS+=("-S")
+        fi
+        if [ "$NO_VERIFY" = "true" ]; then
+          COMMIT_ARGS+=("--no-verify")
+        fi
+        COMMIT_ARGS+=("-m" "$COMMIT_MSG")
+
+        git commit "${COMMIT_ARGS[@]}"
+        git push --force-with-lease origin "$BRANCH"
+        echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+        echo "changes-committed=true" >> "$GITHUB_OUTPUT"
+
+    - name: Create or update pull request
+      id: pr
+      if: steps.commit.outputs.changes-committed == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        BRANCH: ${{ inputs.branch }}
+        BASE_BRANCH: ${{ inputs.base-branch }}
+        COMMIT_MSG: ${{ inputs.commit-message }}
+        PR_TITLE_INPUT: ${{ inputs.pr-title }}
+        PR_BODY: ${{ inputs.pr-body }}
+        LABELS: ${{ inputs.labels }}
+      run: |
+        set -euo pipefail
+
+        PR_TITLE="${PR_TITLE_INPUT:-$COMMIT_MSG}"
+
+        # Normalize labels: convert newlines to commas, collapse whitespace, trim.
+        NORMALIZED_LABELS=$(printf '%s' "$LABELS" | tr '\n' ',' | tr -s ' ' | sed -e 's/^[[:space:],]*//' -e 's/[[:space:],]*$//')
+
+        LABEL_ARGS=()
+        if [ -n "$NORMALIZED_LABELS" ]; then
+          IFS=',' read -ra LABEL_ARRAY <<< "$NORMALIZED_LABELS"
+          for label in "${LABEL_ARRAY[@]}"; do
+            trimmed=$(printf '%s' "$label" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            if [ -n "$trimmed" ]; then
+              LABEL_ARGS+=("--label" "$trimmed")
+            fi
+          done
+        fi
+
+        EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' || echo "")
+
+        if [ -n "$EXISTING_PR" ]; then
+          echo "::notice::Updating existing PR #$EXISTING_PR for branch $BRANCH."
+          gh pr edit "$EXISTING_PR" \
+            --title "$PR_TITLE" \
+            --body "$PR_BODY" \
+            "${LABEL_ARGS[@]/#--label/--add-label}"
+          PR_NUMBER="$EXISTING_PR"
+          echo "created=false" >> "$GITHUB_OUTPUT"
+          echo "updated=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "::notice::Creating new PR for branch $BRANCH targeting $BASE_BRANCH."
+          gh pr create \
+            --base "$BASE_BRANCH" \
+            --head "$BRANCH" \
+            --title "$PR_TITLE" \
+            --body "$PR_BODY" \
+            "${LABEL_ARGS[@]}"
+          PR_NUMBER=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          echo "created=true" >> "$GITHUB_OUTPUT"
+          echo "updated=false" >> "$GITHUB_OUTPUT"
+        fi
+
+        PR_URL=$(gh pr view "$PR_NUMBER" --json url --jq '.url')
+        echo "pr-number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+        echo "pr-url=$PR_URL" >> "$GITHUB_OUTPUT"
+        {
+          echo "## Pull request"
+          echo ""
+          echo "- Branch: \`$BRANCH\` → \`$BASE_BRANCH\`"
+          echo "- PR: [#$PR_NUMBER]($PR_URL)"
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Set empty outputs when no changes
+      if: steps.commit.outputs.changes-committed != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        {
+          echo "created=false"
+          echo "updated=false"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Delete pushed branch on failure
+      if: failure() && inputs.delete-branch-on-failure == 'true' && steps.commit.outputs.pushed == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        BRANCH: ${{ inputs.branch }}
+      run: |
+        set -uo pipefail
+
+        # Never delete a branch that already has an open PR — someone may be reviewing it.
+        EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
+        if [ -n "$EXISTING_PR" ]; then
+          echo "::notice::Open PR #$EXISTING_PR exists for $BRANCH; leaving branch in place."
+          exit 0
+        fi
+
+        if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+          echo "::notice::Deleting remote branch $BRANCH after failure."
+          git push origin --delete "$BRANCH" || echo "::warning::Failed to delete remote branch $BRANCH."
+        else
+          echo "::notice::Remote branch $BRANCH no longer exists; nothing to clean up."
+        fi
