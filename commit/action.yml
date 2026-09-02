@@ -38,6 +38,10 @@ inputs:
     description: "Unencrypted SSH private signing key. Required when signing-method is ssh."
     required: false
     default: ""
+  force-push:
+    description: 'If "true", force-push (with lease) instead of a plain push. Use when the caller recreates/rewrites the branch on every run. Ignored when signing-method is github.'
+    required: false
+    default: "false"
   github-token:
     description: "Token used for GitHub API signing and authenticated pushes. Requires contents: write."
     required: true

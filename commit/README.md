@@ -1,8 +1,9 @@
 # Commit Action
 
 Stages changes in the current checkout, creates one commit, and pushes the current branch. The
-caller owns branch checkout and lifecycle; this action never creates, switches, resets, or force
-pushes a branch.
+caller owns branch checkout and lifecycle; this action never creates, switches, or resets a branch.
+By default it never force-pushes either; set `force-push: true` when the caller recreates/rewrites
+the branch on every run.
 
 ## Usage
 
@@ -26,6 +27,17 @@ steps:
     with:
       commit-message: "chore: update generated files"
       github-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+When the caller recreates the branch from its base on every run (e.g. an "automated update" PR
+branch), set `force-push: true` so the rewritten history can still be pushed:
+
+```yaml
+- uses: ModKit-org/actions/commit@v1
+  with:
+    commit-message: "chore: automated update"
+    force-push: "true"
+    github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 By default, all working-tree changes are staged with `git add -A`. To stage only selected paths:
@@ -97,6 +109,7 @@ the GitHub account as a **signing key**. It is distinct from an SSH authenticati
 | `gpg-private-key` | GPG only |                                                | ASCII-armored private signing key. Use an Actions secret.                                                                            |
 | `gpg-passphrase`  | No       |                                                | Passphrase for the GPG private key. Use an Actions secret.                                                                           |
 | `ssh-signing-key` | SSH only |                                                | Unencrypted private SSH signing key. Use an Actions secret.                                                                          |
+| `force-push`      | No       | `false`                                        | Force-push (with lease) instead of a plain push. Ignored when `signing-method` is `github`.                                          |
 
 ## Outputs
 
