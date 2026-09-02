@@ -95,7 +95,22 @@ export function createGitHubSignedCommit(branch, message, files) {
   }
 
   const response = output("gh", graphqlInput, { env: tokenEnvironment });
-  const commitSha = JSON.parse(response).data?.createCommitOnBranch?.commit?.oid;
+  let result;
+  try {
+    result = JSON.parse(response);
+  } catch {
+    fail("GitHub returned an invalid response for the signed commit request.");
+  }
+
+  const errors = result.errors
+    ?.map((error) => error.message)
+    .filter(Boolean)
+    .join("; ");
+  if (errors) {
+    fail(`GitHub could not create the signed commit: ${errors}`);
+  }
+
+  const commitSha = result.data?.createCommitOnBranch?.commit?.oid;
   if (!commitSha) {
     fail("GitHub did not return a commit SHA for the signed commit request.");
   }
