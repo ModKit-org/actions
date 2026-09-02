@@ -1,13 +1,9 @@
 import { binaryOutput, command, output } from "./command.mjs";
 import { fail, input } from "./workflow.mjs";
 
-const createCommitMutation = `
-  mutation CreateCommitOnBranch($input: CreateCommitOnBranchInput!) {
-    createCommitOnBranch(input: $input) {
-      clientMutationId
-    }
-  }
-`;
+function githubContentPath(file) {
+  return file.split("/").map(encodeURIComponent).join("/");
+}
 
 function wait(milliseconds) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
@@ -63,59 +59,78 @@ export function createGitHubSignedCommit(branch, message, files) {
 
   const status = output("git", ["diff", "--cached", "--name-status", "-z"]);
   const isDeleted = status.startsWith("D\0");
-  const graphqlInput = [
-    "api",
-    "graphql",
-    "-F",
-    `input[branch][repositoryNameWithOwner]=${process.env.GITHUB_REPOSITORY}`,
-    "-F",
-    `input[branch][branchName]=${branch}`,
-    "-F",
-    `input[expectedHeadOid]=${remoteHead}`,
-    "-F",
-    `input[message][headline]=${message}`,
-    "-F",
-    `query=${createCommitMutation}`,
-  ];
+  const apiFile = githubContentPath(file);
+  const existingSha = output(
+    "gh",
+    [
+      "api",
+      `/repos/${process.env.GITHUB_REPOSITORY}/contents/${apiFile}?ref=${encodeURIComponent(branch)}`,
+      "--jq",
+      ".sha",
+    ],
+    { allowFailure: true, env: tokenEnvironment },
+  );
 
+  let response;
   if (isDeleted) {
-    graphqlInput.push("-F", `input[fileChanges][deletions][0][path]=${file}`);
+    if (!existingSha) {
+      fail(
+        `Cannot delete '${file}' because it does not exist on origin/${branch}.`,
+      );
+    }
+    response = output(
+      "gh",
+      [
+        "api",
+        "--method",
+        "DELETE",
+        `/repos/${process.env.GITHUB_REPOSITORY}/contents/${apiFile}`,
+        "-f",
+        `message=${message}`,
+        "-f",
+        `sha=${existingSha}`,
+        "-f",
+        `branch=${branch}`,
+      ],
+      { env: tokenEnvironment },
+    );
   } else {
     const content = binaryOutput("git", ["show", `:${file}`]).toString(
       "base64",
     );
-    graphqlInput.push(
-      "-F",
-      `input[fileChanges][additions][0][path]=${file}`,
-      "-F",
-      `input[fileChanges][additions][0][contents]=${content}`,
-    );
+    const args = [
+      "api",
+      "--method",
+      "PUT",
+      `/repos/${process.env.GITHUB_REPOSITORY}/contents/${apiFile}`,
+      "-f",
+      `message=${message}`,
+      "-f",
+      `content=${content}`,
+      "-f",
+      `branch=${branch}`,
+    ];
+    if (existingSha) {
+      args.push("-f", `sha=${existingSha}`);
+    }
+    response = output("gh", args, { env: tokenEnvironment });
   }
 
-  const response = output("gh", graphqlInput, { env: tokenEnvironment });
   let result;
   try {
     result = JSON.parse(response);
   } catch {
-    fail("GitHub returned an invalid response for the signed commit request.");
+    fail("GitHub returned an invalid Contents API response.");
   }
 
-  const errors = result.errors
-    ?.map((error) => error.message)
-    .filter(Boolean)
-    .join("; ");
-  if (errors) {
-    fail(`GitHub could not create the signed commit: ${errors}`);
-  }
-
-  if (!result.data?.createCommitOnBranch) {
-    fail("GitHub did not confirm creation of the signed commit.");
+  const commitSha = result.commit?.sha;
+  if (!commitSha) {
+    fail("GitHub did not return a commit SHA for the Contents API update.");
   }
 
   command("git", ["fetch", "origin", branch]);
-  const commitSha = output("git", ["rev-parse", `origin/${branch}`]);
-  if (commitSha === remoteHead) {
-    fail("GitHub did not update the branch with the signed commit.");
+  if (output("git", ["rev-parse", `origin/${branch}`]) !== commitSha) {
+    fail("GitHub did not update the branch with the signed commit SHA.");
   }
 
   verifyGitHubSignature(commitSha, tokenEnvironment);
