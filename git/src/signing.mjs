@@ -1,9 +1,15 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { command, output } from "./command.mjs";
-import { input, fail } from "./workflow.mjs";
+import { fail, input } from "./workflow.mjs";
 
 const signingTempDirectory = mkdtempSync(join(tmpdir(), "modkit-commit-"));
 
@@ -11,9 +17,11 @@ export function validateSigningInputs(method) {
   if (!["none", "github", "gpg", "ssh"].includes(method)) {
     fail("Input 'signing-method' must be one of: none, github, gpg, ssh.");
   }
+
   if (method === "gpg" && !input("gpg-private-key").trim()) {
     fail("Input 'gpg-private-key' is required when signing-method is 'gpg'.");
   }
+
   if (method === "ssh" && !input("ssh-signing-key").trim()) {
     fail("Input 'ssh-signing-key' is required when signing-method is 'ssh'.");
   }
@@ -23,9 +31,11 @@ export function configureSigning(method) {
   if (method === "gpg") {
     return configureGpg();
   }
+
   if (method === "ssh") {
     configureSsh();
   }
+
   return {};
 }
 

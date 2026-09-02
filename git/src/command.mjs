@@ -14,10 +14,12 @@ export function command(commandName, args, options = {}) {
   if (result.error) {
     fail(`Unable to run ${commandName}: ${result.error.message}`);
   }
+
   if (result.status !== 0 && !options.allowFailure) {
     const detail = (result.stderr || result.stdout || "").trim();
     fail(detail || `${commandName} exited with code ${result.status}.`);
   }
+
   return result;
 }
 
@@ -36,14 +38,17 @@ export function binaryOutput(commandName, args, options = {}) {
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
   });
+
   if (result.error) {
     fail(`Unable to run ${commandName}: ${result.error.message}`);
   }
+
   if (result.status !== 0) {
     fail(
       (result.stderr?.toString("utf8") || "").trim() ||
         `${commandName} exited with code ${result.status}.`,
     );
   }
+
   return result.stdout;
 }

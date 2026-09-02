@@ -21,9 +21,11 @@ function verifyGitHubSignature(commitSha, tokenEnvironment) {
       ],
       { env: tokenEnvironment },
     );
+
     if (verified === "true") {
       return;
     }
+
     if (attempt < 5) {
       wait(2000);
     }
@@ -51,6 +53,7 @@ export function createGitHubSignedCommit(branch, message, files) {
       `Remote branch 'origin/${branch}' was not found. GitHub signing requires an existing remote branch.`,
     );
   }
+
   if (output("git", ["rev-parse", "HEAD"]) !== remoteHead) {
     fail(
       `Local HEAD does not match origin/${branch}. Fetch and rebase before creating a GitHub-signed commit.`,
@@ -78,6 +81,7 @@ export function createGitHubSignedCommit(branch, message, files) {
         `Cannot delete '${file}' because it does not exist on origin/${branch}.`,
       );
     }
+
     response = output(
       "gh",
       [
@@ -110,9 +114,11 @@ export function createGitHubSignedCommit(branch, message, files) {
       "-f",
       `branch=${branch}`,
     ];
+
     if (existingSha) {
       args.push("-f", `sha=${existingSha}`);
     }
+
     response = output("gh", args, { env: tokenEnvironment });
   }
 
@@ -136,6 +142,7 @@ export function createGitHubSignedCommit(branch, message, files) {
   if (!isDeleted) {
     verifyGitHubSignature(commitSha, tokenEnvironment);
   }
+
   command("git", ["reset", "--hard", commitSha]);
   return commitSha;
 }

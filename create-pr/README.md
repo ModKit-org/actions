@@ -120,7 +120,10 @@ There are two scopes of "failure" to consider:
    - Stages the configured `paths` (defaults to `-A`).
    - Exits early when there is nothing to commit and `skip-if-no-changes` is `true`
      (the default). Otherwise, commits with the provided message and force-pushes the branch using
-     `--force-with-lease`.
+     `--force-with-lease`. When `signing-method` is `gpg` or `ssh`, the commit is signed using the
+     same key-import logic as the [`commit`](../commit) action; when it is `github`, the commit is
+     created via the GitHub Contents API instead of a local `git commit` (requires exactly one
+     staged file and `branch` to already exist on the remote).
 4. **Create or update the pull request**:
    - If an open PR already exists for `branch`, the action updates its title, body, and labels via
      `gh pr edit --add-label` (existing labels are preserved).

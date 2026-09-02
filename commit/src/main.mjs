@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 
 import {
-  commitWithGit,
+  commitChanges,
   configureAuthor,
   currentBranch,
   parsePaths,
-  pushCurrentBranch,
+  pushBranch,
   stage,
   stagedFiles,
-} from "./git.mjs";
-import { createGitHubSignedCommit } from "./github-commit.mjs";
+} from "../../git/src/git.mjs";
+import { createGitHubSignedCommit } from "../../git/src/github-commit.mjs";
 import {
   cleanupSigningMaterial,
   configureSigning,
   validateSigningInputs,
-} from "./signing.mjs";
-import { fail, input, notice, setOutput } from "./workflow.mjs";
+} from "../../git/src/signing.mjs";
+import { fail, input, notice, setOutput } from "../../git/src/workflow.mjs";
 
 const defaultAuthorName = "github-actions[bot]";
 const defaultAuthorEmail = "github-actions[bot]@users.noreply.github.com";
@@ -65,11 +65,12 @@ function main() {
     );
   } else {
     Object.assign(process.env, configureSigning(signingMethod));
-    commitSha = commitWithGit(
+    commitSha = commitChanges(
       input("commit-message"),
       signingMethod !== "none",
+      false,
     );
-    pushCurrentBranch(branch, input("force-push").trim() === "true");
+    pushBranch(branch, input("force-push").trim() === "true");
   }
 
   setOutput("committed", "true");
