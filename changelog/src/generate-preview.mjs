@@ -5,7 +5,7 @@ import { input } from "../../git/src/workflow.mjs";
 
 export function generatePreview() {
   const config = input("config").trim();
-  const args = ["--verbose", "--unreleased", "--strip", "header", "-vv"];
+  const args = ["--unreleased", "--strip", "header"];
   if (config) {
     args.unshift("--config", config);
   }

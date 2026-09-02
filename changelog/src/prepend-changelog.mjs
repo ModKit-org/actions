@@ -7,7 +7,6 @@ export function prependChangelog() {
   const changelogFile = input("changelog-file").trim() || "CHANGELOG.md";
 
   const args = [
-    "--verbose",
     "--tag",
     tag,
     "--unreleased",

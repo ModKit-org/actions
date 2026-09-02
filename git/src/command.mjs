@@ -2,6 +2,9 @@ import { spawnSync } from "node:child_process";
 
 import { fail } from "./workflow.mjs";
 
+// Node's spawnSync default maxBuffer (1 MB) is easily exceeded by verbose tool output (e.g. git-cliff), causing ENOBUFS.
+const MAX_BUFFER = 100 * 1024 * 1024;
+
 export function command(commandName, args, options = {}) {
   const result = spawnSync(commandName, args, {
     cwd: options.cwd,
@@ -9,6 +12,7 @@ export function command(commandName, args, options = {}) {
     encoding: "utf8",
     shell: false,
     stdio: options.stdio ?? "pipe",
+    maxBuffer: MAX_BUFFER,
   });
 
   if (result.error) {
@@ -37,6 +41,7 @@ export function binaryOutput(commandName, args, options = {}) {
     encoding: null,
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
+    maxBuffer: MAX_BUFFER,
   });
 
   if (result.error) {
