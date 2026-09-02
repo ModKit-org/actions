@@ -35,7 +35,7 @@ function configureGpg() {
   mkdirSync(gpgHome, { mode: 0o700 });
   const pinentrySource = [
     "#!/usr/bin/env node",
-    String.raw`const passphrase = (process.env.INPUT_GPG_PASSPHRASE ?? "").replaceAll("%", "%25").replaceAll("\n", "").replaceAll("\r", "");`,
+    String.raw`const passphrase = (process.env["INPUT_GPG-PASSPHRASE"] ?? "").replaceAll("%", "%25").replaceAll("\n", "").replaceAll("\r", "");`,
     'let buffer = "";',
     String.raw`process.stdout.write("OK ModKit pinentry ready\n");`,
     'process.stdin.setEncoding("utf8");',

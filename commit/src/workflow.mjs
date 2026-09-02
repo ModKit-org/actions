@@ -1,7 +1,7 @@
 import { appendFileSync } from "node:fs";
 
 export function input(name) {
-  return process.env[`INPUT_${name.replaceAll("-", "_").toUpperCase()}`] ?? "";
+  return process.env[`INPUT_${name.replaceAll(" ", "_").toUpperCase()}`] ?? "";
 }
 
 export function notice(message) {
