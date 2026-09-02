@@ -133,7 +133,9 @@ export function createGitHubSignedCommit(branch, message, files) {
     fail("GitHub did not update the branch with the signed commit SHA.");
   }
 
-  verifyGitHubSignature(commitSha, tokenEnvironment);
+  if (!isDeleted) {
+    verifyGitHubSignature(commitSha, tokenEnvironment);
+  }
   command("git", ["reset", "--hard", commitSha]);
   return commitSha;
 }
