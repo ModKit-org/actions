@@ -1,11 +1,6 @@
 import { command, output } from "./command.mjs";
 import { fail } from "./workflow.mjs";
 
-export function configureIdentity(name, email) {
-  command("git", ["config", "user.name", name]);
-  command("git", ["config", "user.email", email]);
-}
-
 export function fetchRemote(branch) {
   command("git", ["fetch", "origin", branch], {
     allowFailure: true,
@@ -62,26 +57,6 @@ export function stagedFiles() {
     .filter(Boolean);
 }
 
-export function commitWithGit(message, shouldSign) {
-  const args = ["commit"];
-  if (shouldSign) {
-    args.push("-S");
-  }
-
-  args.push("-m", message);
-  command("git", args, { stdio: "inherit" });
-  return output("git", ["rev-parse", "HEAD"]);
-}
-
-export function pushCurrentBranch(branch, force) {
-  const args = ["push"];
-  if (force) {
-    args.push("--force-with-lease");
-  }
-
-  args.push("origin", `HEAD:refs/heads/${branch}`);
-  command("git", args, { stdio: "inherit" });
-}
 export function hasStagedChanges() {
   return (
     command("git", ["diff", "--cached", "--quiet"], {
@@ -101,12 +76,17 @@ export function commitChanges(message, sign, noVerify) {
   args.push("-m", message);
 
   command("git", args, { stdio: "inherit" });
+  return output("git", ["rev-parse", "HEAD"]);
 }
 
-export function pushBranch(branch) {
-  command("git", ["push", "--force-with-lease", "origin", branch], {
-    stdio: "inherit",
-  });
+export function pushBranch(branch, force) {
+  const args = ["push"];
+  if (force) {
+    args.push("--force-with-lease");
+  }
+
+  args.push("origin", branch);
+  command("git", args, { stdio: "inherit" });
 }
 
 export function remoteBranchExists(branch) {

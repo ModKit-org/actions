@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 import {
-  commitWithGit,
+  commitChanges,
   configureAuthor,
   currentBranch,
   parsePaths,
-  pushCurrentBranch,
+  pushBranch,
   stage,
   stagedFiles,
 } from "../../git/src/git.mjs";
@@ -65,11 +65,12 @@ function main() {
     );
   } else {
     Object.assign(process.env, configureSigning(signingMethod));
-    commitSha = commitWithGit(
+    commitSha = commitChanges(
       input("commit-message"),
       signingMethod !== "none",
+      false,
     );
-    pushCurrentBranch(branch, input("force-push").trim() === "true");
+    pushBranch(branch, input("force-push").trim() === "true");
   }
 
   setOutput("committed", "true");

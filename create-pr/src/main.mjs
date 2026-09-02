@@ -6,7 +6,7 @@ import { fail, input, notice, setOutput } from "../../git/src/workflow.mjs";
 import {
   checkoutBranch,
   commitChanges,
-  configureIdentity,
+  configureAuthor,
   deleteRemoteBranch,
   fetchRemote,
   hasStagedChanges,
@@ -60,7 +60,7 @@ function main() {
   validateInputs(branch, baseBranch);
   setOutput("branch", branch);
 
-  configureIdentity(
+  configureAuthor(
     input("git-user-name").trim() || defaultAuthorName,
     input("git-user-email").trim() || defaultAuthorEmail,
   );
@@ -83,7 +83,7 @@ function main() {
   }
 
   commitChanges(commitMessage, signCommit, noVerify);
-  pushBranch(branch);
+  pushBranch(branch, true);
   pushed = true;
   setOutput("changes-committed", "true");
 
