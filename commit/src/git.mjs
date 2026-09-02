@@ -1,11 +1,12 @@
-import { command, output } from "./command.mjs";
-import { fail } from "./workflow.mjs";
+import { command, output } from "../../git/src/command.mjs";
+import { fail } from "../../git/src/workflow.mjs";
 
 export function parsePaths(value) {
   const normalized = value.trim();
   if (!normalized || normalized === "-A") {
     return ["-A"];
   }
+
   return normalized.split(/[\r\n\t ]+/).filter(Boolean);
 }
 
@@ -14,6 +15,7 @@ export function currentBranch() {
   if (!branch) {
     fail("A checked-out branch is required; detached HEAD is not supported.");
   }
+
   return branch;
 }
 
@@ -25,9 +27,10 @@ export function configureAuthor(name, email) {
 export function stage(paths) {
   if (paths.length === 1 && paths[0] === "-A") {
     command("git", ["add", "-A"]);
-  } else {
-    command("git", ["add", "--", ...paths]);
+    return;
   }
+
+  command("git", ["add", "--", ...paths]);
 }
 
 export function stagedFiles() {
@@ -41,6 +44,7 @@ export function commitWithGit(message, shouldSign) {
   if (shouldSign) {
     args.push("-S");
   }
+
   args.push("-m", message);
   command("git", args, { stdio: "inherit" });
   return output("git", ["rev-parse", "HEAD"]);
@@ -51,6 +55,7 @@ export function pushCurrentBranch(branch, force) {
   if (force) {
     args.push("--force-with-lease");
   }
+
   args.push("origin", `HEAD:refs/heads/${branch}`);
   command("git", args, { stdio: "inherit" });
 }

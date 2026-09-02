@@ -15,7 +15,7 @@ import {
   configureSigning,
   validateSigningInputs,
 } from "./signing.mjs";
-import { fail, input, notice, setOutput } from "./workflow.mjs";
+import { fail, input, notice, setOutput } from "../../git/src/workflow.mjs";
 
 const defaultAuthorName = "github-actions[bot]";
 const defaultAuthorEmail = "github-actions[bot]@users.noreply.github.com";

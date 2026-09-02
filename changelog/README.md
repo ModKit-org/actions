@@ -92,8 +92,8 @@ steps:
 
 ### Preview mode
 
-1. Runs `git-cliff --unreleased --strip header` via
-   [`orhun/git-cliff-action`](https://github.com/orhun/git-cliff-action) to build a snippet of the unreleased changes.
+1. Installs the `git-cliff` CLI (downloaded directly from its GitHub releases) and runs
+   `git-cliff --unreleased --strip header` to build a snippet of the unreleased changes.
 2. Reads the generated file and falls back to `_No unreleased changes detected._` when empty.
 3. Posts the snippet as a comment on the current pull request, or updates the existing comment identified by the
    marker `<!-- git-cliff-preview -->`.
@@ -119,6 +119,7 @@ If no changelog diff is produced in release mode, the step fails with a diagnost
 | `tag-name`       | no¹      |                      | Version tag to release (e.g. `v5.1.0`). **Required when `mode` is `release`.**                                              |
 | `prerelease`     | no       | `false`              | Marks the upcoming release as a pre-release. Only used in release mode (surfaced in the PR body).                           |
 | `config`         | no       | `.github/cliff.toml` | Path to the git-cliff configuration file.                                                                                   |
+| `git-cliff-version` | no   | `2.14.1`             | `git-cliff` release version to install (without the leading `v`).                                                           |
 | `changelog-file` | no       | `CHANGELOG.md`       | Path to the changelog file to prepend to in release mode.                                                                   |
 | `pr-label`       | no       | `automated`          | Label applied to the release PR.                                                                                            |
 | `github-token`   | **yes**  |                      | Token used to post PR comments, push the changelog branch, and open the PR. Typically `${{ secrets.GITHUB_TOKEN }}`.        |
