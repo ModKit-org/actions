@@ -46,8 +46,11 @@ export function commitWithGit(message, shouldSign) {
   return output("git", ["rev-parse", "HEAD"]);
 }
 
-export function pushCurrentBranch(branch) {
-  command("git", ["push", "origin", `HEAD:refs/heads/${branch}`], {
-    stdio: "inherit",
-  });
+export function pushCurrentBranch(branch, force) {
+  const args = ["push"];
+  if (force) {
+    args.push("--force-with-lease");
+  }
+  args.push("origin", `HEAD:refs/heads/${branch}`);
+  command("git", args, { stdio: "inherit" });
 }

@@ -69,7 +69,7 @@ function main() {
       input("commit-message"),
       signingMethod !== "none",
     );
-    pushCurrentBranch(branch);
+    pushCurrentBranch(branch, input("force-push").trim() === "true");
   }
 
   setOutput("committed", "true");
