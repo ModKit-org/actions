@@ -1,0 +1,131 @@
+#!/usr/bin/env node
+
+import { appendFileSync } from "node:fs";
+
+import { fail, input, notice, setOutput } from "../../git/src/workflow.mjs";
+import {
+  checkoutBranch,
+  commitChanges,
+  configureIdentity,
+  deleteRemoteBranch,
+  fetchRemote,
+  hasStagedChanges,
+  parsePaths,
+  pushBranch,
+  remoteBranchExists,
+  stage,
+} from "../../git/src/git.mjs";
+import { createOrUpdatePr, findOpenPr, prUrl } from "./gh.mjs";
+
+const defaultAuthorName = "github-actions[bot]";
+const defaultAuthorEmail = "github-actions[bot]@users.noreply.github.com";
+
+function validateInputs(branch, baseBranch) {
+  if (!branch) {
+    fail("Input 'branch' is required.");
+  }
+  if (!baseBranch) {
+    fail("Input 'base-branch' could not be resolved. Provide it explicitly.");
+  }
+  if (branch === baseBranch) {
+    fail(
+      `Input 'branch' (${branch}) must differ from 'base-branch' (${baseBranch}).`,
+    );
+  }
+}
+
+function writeSummary(lines) {
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      `${lines.join("\n")}\n`,
+      "utf8",
+    );
+  }
+}
+
+let pushed = false;
+
+function main() {
+  process.env.GH_TOKEN = input("github-token");
+
+  const branch = input("branch").trim();
+  const baseBranch = input("base-branch").trim();
+  const commitMessage = input("commit-message");
+  const skipIfNoChanges = input("skip-if-no-changes").trim() === "true";
+  const resetBranch = input("reset-branch").trim() === "true";
+  const signCommit = input("sign-commit").trim() === "true";
+  const noVerify = input("no-verify").trim() === "true";
+
+  validateInputs(branch, baseBranch);
+  setOutput("branch", branch);
+
+  configureIdentity(
+    input("git-user-name").trim() || defaultAuthorName,
+    input("git-user-email").trim() || defaultAuthorEmail,
+  );
+
+  fetchRemote(baseBranch);
+  fetchRemote(branch);
+  checkoutBranch(branch, resetBranch, baseBranch);
+
+  stage(parsePaths(input("paths")));
+
+  if (!hasStagedChanges()) {
+    setOutput("created", "false");
+    setOutput("updated", "false");
+    if (skipIfNoChanges) {
+      notice("No changes to commit, skipping PR creation.");
+      setOutput("changes-committed", "false");
+      return;
+    }
+    fail("No changes to commit.");
+  }
+
+  commitChanges(commitMessage, signCommit, noVerify);
+  pushBranch(branch);
+  pushed = true;
+  setOutput("changes-committed", "true");
+
+  const { number, created } = createOrUpdatePr({
+    branch,
+    baseBranch,
+    title: input("pr-title").trim() || commitMessage,
+    body: input("pr-body"),
+    labels: input("labels"),
+  });
+
+  const url = prUrl(number);
+  setOutput("pr-number", number);
+  setOutput("pr-url", url);
+  setOutput("created", created ? "true" : "false");
+  setOutput("updated", created ? "false" : "true");
+
+  writeSummary([
+    "## Pull request",
+    "",
+    `- Branch: \`${branch}\` → \`${baseBranch}\``,
+    `- PR: [#${number}](${url})`,
+  ]);
+
+  notice(created ? `Created PR #${number}.` : `Updated PR #${number}.`);
+}
+
+try {
+  main();
+} catch (error) {
+  console.log(`::error::${error.message}`);
+  process.exitCode = 1;
+
+  if (pushed && input("delete-branch-on-failure").trim() === "true") {
+    const branch = input("branch").trim();
+    if (findOpenPr(branch)) {
+      notice(`Open PR exists for ${branch}; leaving branch in place.`);
+    } else if (remoteBranchExists(branch)) {
+      notice(`Deleting remote branch ${branch} after failure.`);
+      deleteRemoteBranch(branch);
+    } else {
+      notice(`Remote branch ${branch} no longer exists; nothing to clean up.`);
+    }
+  }
+}

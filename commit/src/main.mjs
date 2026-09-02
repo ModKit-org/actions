@@ -8,7 +8,7 @@ import {
   pushCurrentBranch,
   stage,
   stagedFiles,
-} from "./git.mjs";
+} from "../../git/src/git.mjs";
 import { createGitHubSignedCommit } from "./github-commit.mjs";
 import {
   cleanupSigningMaterial,
