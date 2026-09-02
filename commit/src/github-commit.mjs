@@ -5,6 +5,35 @@ function githubContentPath(file) {
   return file.split("/").map(encodeURIComponent).join("/");
 }
 
+function wait(milliseconds) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+function verifyGitHubSignature(commitSha, tokenEnvironment) {
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    const verified = output(
+      "gh",
+      [
+        "api",
+        `/repos/${process.env.GITHUB_REPOSITORY}/git/commits/${commitSha}`,
+        "--jq",
+        ".verification.verified",
+      ],
+      { env: tokenEnvironment },
+    );
+    if (verified === "true") {
+      return;
+    }
+    if (attempt < 5) {
+      wait(2000);
+    }
+  }
+
+  fail(
+    `GitHub created commit ${commitSha}, but did not report it as verified.`,
+  );
+}
+
 export function createGitHubSignedCommit(branch, message, files) {
   if (files.length !== 1) {
     fail(
@@ -91,21 +120,9 @@ export function createGitHubSignedCommit(branch, message, files) {
   if (!commitSha) {
     fail("GitHub did not return a commit SHA for the Contents API update.");
   }
-  const verified = output(
-    "gh",
-    [
-      "api",
-      `/repos/${process.env.GITHUB_REPOSITORY}/git/commits/${commitSha}`,
-      "--jq",
-      ".verification.verified",
-    ],
-    { env: tokenEnvironment },
-  );
-  if (verified !== "true") {
-    fail(
-      `GitHub created commit ${commitSha}, but did not report it as verified.`,
-    );
-  }
+
+  verifyGitHubSignature(commitSha, tokenEnvironment);
+
   command("git", ["fetch", "origin", branch]);
   command("git", ["reset", "--hard", commitSha]);
   return commitSha;
