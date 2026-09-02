@@ -35,6 +35,14 @@ inputs:
     description: "Label applied to the release PR in release mode."
     required: false
     default: "automated"
+  git-user-name:
+    description: "Git user.name used for the release commit. Only used in release mode."
+    required: false
+    default: "github-actions[bot]"
+  git-user-email:
+    description: "Git user.email used for the release commit. Only used in release mode."
+    required: false
+    default: "github-actions[bot]@users.noreply.github.com"
   github-token:
     description: "Token used for posting PR comments, pushing the changelog branch, and opening the PR. Requires contents: write and pull-requests: write."
     required: true

@@ -53,16 +53,28 @@ inputs:
     description: 'Git user.email used for the commit.'
     required: false
     default: 'github-actions[bot]@users.noreply.github.com'
-  sign-commit:
-    description: 'If "true", sign the commit using GPG (requires the runner to already be configured with a signing key). Defaults to "false".'
+  signing-method:
+    description: 'Commit signing method: none, github, gpg, or ssh. GitHub mode supports exactly one staged file and requires `branch` to already exist on the remote.'
     required: false
-    default: 'false'
+    default: 'none'
+  gpg-private-key:
+    description: 'ASCII-armored GPG private signing key. Required when signing-method is gpg.'
+    required: false
+    default: ''
+  gpg-passphrase:
+    description: 'Passphrase for gpg-private-key, if any.'
+    required: false
+    default: ''
+  ssh-signing-key:
+    description: 'Unencrypted SSH private signing key. Required when signing-method is ssh.'
+    required: false
+    default: ''
   no-verify:
     description: 'If "true", pass `--no-verify` to `git commit` to skip pre-commit hooks.'
     required: false
     default: 'false'
   github-token:
-    description: 'Token used to push the branch and create/update the pull request. Requires `contents: write` and `pull-requests: write`.'
+    description: 'Token used to push the branch, create/update the pull request, and (when signing-method is github) sign commits via the Contents API. Requires `contents: write` and `pull-requests: write`.'
     required: true
 
 outputs:

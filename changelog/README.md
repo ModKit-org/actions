@@ -101,12 +101,14 @@ steps:
 ### Release mode
 
 1. Verifies that the requested tag does not already exist.
-2. Runs `git-cliff --tag <tag-name> --unreleased --prepend <changelog-file>` to add the new section at the top of the
+2. Checks out (or resets) the `changelog/<tag-name>` branch from the branch that triggered the workflow.
+3. Runs `git-cliff --tag <tag-name> --unreleased --prepend <changelog-file>` to add the new section at the top of the
    changelog while preserving any manual edits below.
-3. Commits the change on a new branch `changelog/<tag-name>` as `github-actions[bot]` and pushes it.
-4. Opens a pull request titled `chore(release): update <changelog-file> for <tag-name>` with the configured label.
-   The body indicates that the tag/release will be created automatically after the PR is merged, and flags pre-releases
-   when applicable.
+4. Commits the change as `github-actions[bot]` (or the configured `git-user-name`/`git-user-email`) and pushes the
+   branch.
+5. Opens (or updates) a pull request titled `chore(release): update <changelog-file> for <tag-name>` with the
+   configured label. The body indicates that the tag/release will be created automatically after the PR is merged,
+   and flags pre-releases when applicable.
 
 If no changelog diff is produced in release mode, the step fails with a diagnostic message suggesting likely causes
 (no unreleased commits, commits filtered by `cliff.toml`, or non-conventional commit messages).
@@ -122,6 +124,8 @@ If no changelog diff is produced in release mode, the step fails with a diagnost
 | `git-cliff-version` | no   | `2.14.1`             | `git-cliff` release version to install (without the leading `v`).                                                           |
 | `changelog-file` | no       | `CHANGELOG.md`       | Path to the changelog file to prepend to in release mode.                                                                   |
 | `pr-label`       | no       | `automated`          | Label applied to the release PR.                                                                                            |
+| `git-user-name`  | no       | `github-actions[bot]` | Git user.name used for the release commit. Only used in release mode.                                                      |
+| `git-user-email` | no       | `github-actions[bot]@users.noreply.github.com` | Git user.email used for the release commit. Only used in release mode.                                          |
 | `github-token`   | **yes**  |                      | Token used to post PR comments, push the changelog branch, and open the PR. Typically `${{ secrets.GITHUB_TOKEN }}`.        |
 
 ¹ Required when `mode` resolves to `release`.

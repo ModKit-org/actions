@@ -14,13 +14,20 @@ import {
   pushBranch,
   remoteBranchExists,
   stage,
+  stagedFiles,
 } from "../../git/src/git.mjs";
+import { createGitHubSignedCommit } from "../../git/src/github-commit.mjs";
+import {
+  cleanupSigningMaterial,
+  configureSigning,
+  validateSigningInputs,
+} from "../../git/src/signing.mjs";
 import { createOrUpdatePr, findOpenPr, prUrl } from "./gh.mjs";
 
 const defaultAuthorName = "github-actions[bot]";
 const defaultAuthorEmail = "github-actions[bot]@users.noreply.github.com";
 
-function validateInputs(branch, baseBranch) {
+function validateInputs(branch, baseBranch, signingMethod) {
   if (!branch) {
     fail("Input 'branch' is required.");
   }
@@ -32,6 +39,8 @@ function validateInputs(branch, baseBranch) {
       `Input 'branch' (${branch}) must differ from 'base-branch' (${baseBranch}).`,
     );
   }
+
+  validateSigningInputs(signingMethod);
 }
 
 function writeSummary(lines) {
@@ -54,10 +63,10 @@ function main() {
   const commitMessage = input("commit-message");
   const skipIfNoChanges = input("skip-if-no-changes").trim() === "true";
   const resetBranch = input("reset-branch").trim() === "true";
-  const signCommit = input("sign-commit").trim() === "true";
+  const signingMethod = input("signing-method").trim() || "none";
   const noVerify = input("no-verify").trim() === "true";
 
-  validateInputs(branch, baseBranch);
+  validateInputs(branch, baseBranch, signingMethod);
   setOutput("branch", branch);
 
   configureAuthor(
@@ -68,6 +77,11 @@ function main() {
   fetchRemote(baseBranch);
   fetchRemote(branch);
   checkoutBranch(branch, resetBranch, baseBranch);
+
+  if (signingMethod === "github") {
+    // GitHub signing commits via the Contents API, which requires origin/branch to already match HEAD.
+    pushBranch(branch, true);
+  }
 
   stage(parsePaths(input("paths")));
 
@@ -82,8 +96,13 @@ function main() {
     fail("No changes to commit.");
   }
 
-  commitChanges(commitMessage, signCommit, noVerify);
-  pushBranch(branch, true);
+  if (signingMethod === "github") {
+    createGitHubSignedCommit(branch, commitMessage, stagedFiles());
+  } else {
+    Object.assign(process.env, configureSigning(signingMethod));
+    commitChanges(commitMessage, signingMethod !== "none", noVerify);
+    pushBranch(branch, true);
+  }
   pushed = true;
   setOutput("changes-committed", "true");
 
@@ -128,4 +147,6 @@ try {
       notice(`Remote branch ${branch} no longer exists; nothing to clean up.`);
     }
   }
+} finally {
+  cleanupSigningMaterial();
 }

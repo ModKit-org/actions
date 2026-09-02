@@ -9,12 +9,12 @@ import {
   stage,
   stagedFiles,
 } from "../../git/src/git.mjs";
-import { createGitHubSignedCommit } from "./github-commit.mjs";
+import { createGitHubSignedCommit } from "../../git/src/github-commit.mjs";
 import {
   cleanupSigningMaterial,
   configureSigning,
   validateSigningInputs,
-} from "./signing.mjs";
+} from "../../git/src/signing.mjs";
 import { fail, input, notice, setOutput } from "../../git/src/workflow.mjs";
 
 const defaultAuthorName = "github-actions[bot]";

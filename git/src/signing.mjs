@@ -8,8 +8,8 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { command, output } from "../../git/src/command.mjs";
-import { fail, input } from "../../git/src/workflow.mjs";
+import { command, output } from "./command.mjs";
+import { fail, input } from "./workflow.mjs";
 
 const signingTempDirectory = mkdtempSync(join(tmpdir(), "modkit-commit-"));
 

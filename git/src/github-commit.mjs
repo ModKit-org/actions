@@ -1,5 +1,5 @@
-import { binaryOutput, command, output } from "../../git/src/command.mjs";
-import { fail, input } from "../../git/src/workflow.mjs";
+import { binaryOutput, command, output } from "./command.mjs";
+import { fail, input } from "./workflow.mjs";
 
 function githubContentPath(file) {
   return file.split("/").map(encodeURIComponent).join("/");

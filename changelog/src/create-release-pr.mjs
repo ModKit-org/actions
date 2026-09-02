@@ -1,7 +1,18 @@
-import { readFileSync } from "node:fs";
+import { createOrUpdatePr, prUrl } from "../../create-pr/src/gh.mjs";
+import {
+  checkoutBranch,
+  commitChanges,
+  configureAuthor,
+  fetchRemote,
+  hasStagedChanges,
+  pushBranch,
+  stage,
+} from "../../git/src/git.mjs";
+import { fail, input, notice } from "../../git/src/workflow.mjs";
+import { prependChangelog } from "./prepend-changelog.mjs";
 
-import { command, output } from "../../git/src/command.mjs";
-import { fail, input } from "../../git/src/workflow.mjs";
+const defaultAuthorName = "github-actions[bot]";
+const defaultAuthorEmail = "github-actions[bot]@users.noreply.github.com";
 
 export function createReleasePr() {
   const tag = input("tag-name").trim();
@@ -9,13 +20,21 @@ export function createReleasePr() {
   const changelogFile = input("changelog-file").trim() || "CHANGELOG.md";
   const prLabel = input("pr-label").trim() || "automated";
   const config = input("config").trim();
-  const repo = process.env.GITHUB_REPOSITORY;
-  const refName = process.env.GITHUB_REF_NAME;
+  const baseBranch = process.env.GITHUB_REF_NAME;
+  const branch = `changelog/${tag}`;
 
-  const diff = command("git", ["diff", "--quiet", "--", changelogFile], {
-    allowFailure: true,
-  });
-  if (diff.status === 0) {
+  configureAuthor(
+    input("git-user-name").trim() || defaultAuthorName,
+    input("git-user-email").trim() || defaultAuthorEmail,
+  );
+
+  fetchRemote(baseBranch);
+  checkoutBranch(branch, true, baseBranch);
+
+  prependChangelog();
+  stage([changelogFile]);
+
+  if (!hasStagedChanges()) {
     fail(
       `No changelog changes detected for ${tag}. Possible causes:\n` +
         "  - No unreleased commits exist since the last tag\n" +
@@ -25,52 +44,9 @@ export function createReleasePr() {
     );
   }
 
-  const branchName = `changelog/${tag}`;
-  const baseSha = JSON.parse(
-    output("gh", ["api", `/repos/${repo}/git/ref/heads/${refName}`]),
-  ).object.sha;
-
-  output("gh", [
-    "api",
-    "--method",
-    "POST",
-    `/repos/${repo}/git/refs`,
-    "-f",
-    `ref=refs/heads/${branchName}`,
-    "-f",
-    `sha=${baseSha}`,
-  ]);
-
-  const content = readFileSync(changelogFile, "utf8");
-  const encodedContent = Buffer.from(content, "utf8").toString("base64");
-
-  const existingSha = output(
-    "gh",
-    [
-      "api",
-      `/repos/${repo}/contents/${changelogFile}?ref=${baseSha}`,
-      "--jq",
-      ".sha",
-    ],
-    { allowFailure: true },
-  );
-
-  const putArgs = [
-    "api",
-    "--method",
-    "PUT",
-    `/repos/${repo}/contents/${changelogFile}`,
-    "-f",
-    `message=chore(release): update ${changelogFile} for ${tag}`,
-    "-f",
-    `content=${encodedContent}`,
-    "-f",
-    `branch=${branchName}`,
-  ];
-  if (existingSha) {
-    putArgs.push("-f", `sha=${existingSha}`);
-  }
-  output("gh", putArgs);
+  const commitMessage = `chore(release): update ${changelogFile} for ${tag}`;
+  commitChanges(commitMessage, false, false);
+  pushBranch(branch, true);
 
   let body = `Automated changelog update for release **${tag}**.`;
   body +=
@@ -80,22 +56,15 @@ export function createReleasePr() {
       "\n\n> **Pre-release**: this version will be marked as a pre-release.";
   }
 
-  command(
-    "gh",
-    [
-      "pr",
-      "create",
-      "--base",
-      refName,
-      "--head",
-      branchName,
-      "--title",
-      `chore(release): update ${changelogFile} for ${tag}`,
-      "--body",
-      body,
-      "--label",
-      prLabel,
-    ],
-    { stdio: "inherit" },
+  const { number, created } = createOrUpdatePr({
+    branch,
+    baseBranch,
+    title: commitMessage,
+    body,
+    labels: prLabel,
+  });
+
+  notice(
+    `${created ? "Created" : "Updated"} PR #${number} (${prUrl(number)}).`,
   );
 }

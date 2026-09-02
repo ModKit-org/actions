@@ -6,7 +6,6 @@ import { createReleasePr } from "./create-release-pr.mjs";
 import { generatePreview } from "./generate-preview.mjs";
 import { installGitCliff } from "./install-git-cliff.mjs";
 import { postPreviewComment } from "./post-preview-comment.mjs";
-import { prependChangelog } from "./prepend-changelog.mjs";
 import { resolveMode } from "./resolve-mode.mjs";
 import { validateTagAvailable } from "./validate-tag.mjs";
 
@@ -25,7 +24,6 @@ async function main() {
     postPreviewComment();
   } else {
     validateTagAvailable();
-    prependChangelog();
     createReleasePr();
   }
 }
