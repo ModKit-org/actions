@@ -54,9 +54,9 @@ By default, all working-tree changes are staged with `git add -A`. To stage only
 
 ### GitHub-managed signing
 
-GitHub's `createCommitOnBranch` GraphQL mutation creates commits that GitHub reports as verified.
-This mode deliberately accepts **exactly one staged file**. Use GPG or SSH signing when one signed
-commit must include several files.
+GitHub's Contents API creates commits that GitHub reports as verified. Because that API creates one
+commit for each file mutation, this mode deliberately accepts **exactly one staged file**. Use GPG or
+SSH signing when one signed commit must include several files.
 
 ```yaml
 - uses: ModKit-org/actions/commit@v1
