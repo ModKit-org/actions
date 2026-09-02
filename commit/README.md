@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 steps:
-  - uses: actions/checkout@v6
+  - uses: actions/checkout@v7
     with:
       ref: ${{ github.ref_name }}
       persist-credentials: true
@@ -54,9 +54,9 @@ By default, all working-tree changes are staged with `git add -A`. To stage only
 
 ### GitHub-managed signing
 
-GitHub's Contents API creates commits that GitHub reports as verified. Because that API creates one
-commit for each file mutation, this mode deliberately accepts **exactly one staged file**. Use GPG
-or SSH signing when one signed commit must include several files.
+GitHub's `createCommitOnBranch` GraphQL mutation creates commits that GitHub reports as verified.
+This mode deliberately accepts **exactly one staged file**. Use GPG or SSH signing when one signed
+commit must include several files.
 
 ```yaml
 - uses: ModKit-org/actions/commit@v1
@@ -122,9 +122,9 @@ the GitHub account as a **signing key**. It is distinct from an SSH authenticati
 ## Implementation
 
 This is a direct `node24` action. GitHub Actions automatically exposes each declared input to
-`src/main.mjs` as an environment variable named `INPUT_<INPUT_NAME>`, with hyphens converted to
-underscores and letters uppercased. For example, `signing-method` becomes
-`INPUT_SIGNING_METHOD`. Callers provide values only through `with`; they do not configure these
+`src/main.mjs` as an environment variable named `INPUT_<INPUT_NAME>`, uppercased with spaces
+converted to underscores and hyphens preserved. For example, `signing-method` becomes
+`INPUT_SIGNING-METHOD`. Callers provide values only through `with`; they do not configure these
 environment variables themselves.
 
 The action publishes its declared outputs by appending to the runner-provided `GITHUB_OUTPUT` file.
