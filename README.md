@@ -11,6 +11,8 @@ related technologies.
 - **[create-pr](create-pr/README.md)**: Composite action that commits the current working-tree changes to a dedicated
   branch, force-pushes it, and creates or updates a pull request via the GitHub CLI. Designed for the recurring
   "automated update" pattern (dependency bumps, regenerated docs, synced assets, etc.).
+- **[commit](commit/README.md)**: Composite action that stages changes, commits and pushes the current branch, with
+  optional GitHub-managed, GPG, or SSH commit signing.
 
 More actions will be added over time to support a variety of CI/CD scenarios.
 
@@ -23,6 +25,7 @@ instructions and input/output documentation.
 
 - [changelog README.md](changelog/README.md) for an example of how to use the `changelog` action in both preview and release modes.
 - [create-pr README.md](create-pr/README.md) for examples of opening or updating a pull request from a workflow that produces working-tree changes.
+- [commit README.md](commit/README.md) for examples of committing and pushing changes with optional signing.
 
 ## License
 

@@ -1,0 +1,55 @@
+name: "Commit"
+description: "Stages changes, creates a commit on the current branch, pushes it, and optionally signs it with GitHub, GPG, or SSH."
+author: "ModKit-org"
+
+branding:
+  icon: "git-commit"
+  color: "blue"
+
+inputs:
+  commit-message:
+    description: "Message for the created commit."
+    required: true
+  paths:
+    description: "Paths to stage. Defaults to -A; provide a space- or newline-separated list to stage specific paths."
+    required: false
+    default: "-A"
+  signing-method:
+    description: "Commit signing method: none, github, gpg, or ssh. GitHub mode supports exactly one staged file."
+    required: false
+    default: "none"
+  git-user-name:
+    description: "Git author name for normal, GPG, and SSH commits."
+    required: false
+    default: "github-actions[bot]"
+  git-user-email:
+    description: "Git author email for normal, GPG, and SSH commits."
+    required: false
+    default: "github-actions[bot]@users.noreply.github.com"
+  gpg-private-key:
+    description: "ASCII-armored GPG private signing key. Required when signing-method is gpg."
+    required: false
+    default: ""
+  gpg-passphrase:
+    description: "Passphrase for gpg-private-key, if any."
+    required: false
+    default: ""
+  ssh-signing-key:
+    description: "Unencrypted SSH private signing key. Required when signing-method is ssh."
+    required: false
+    default: ""
+  github-token:
+    description: "Token used for GitHub API signing and authenticated pushes. Requires contents: write."
+    required: true
+
+outputs:
+  committed:
+    description: '"true" when a commit was created; "false" when there were no staged changes.'
+  commit-sha:
+    description: "SHA of the created commit. Empty when no commit was created."
+  pushed:
+    description: '"true" when the commit was pushed; "false" when there were no changes.'
+
+runs:
+  using: "node24"
+  main: "src/main.mjs"
