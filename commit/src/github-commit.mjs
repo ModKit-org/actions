@@ -4,9 +4,7 @@ import { fail, input } from "./workflow.mjs";
 const createCommitMutation = `
   mutation CreateCommitOnBranch($input: CreateCommitOnBranchInput!) {
     createCommitOnBranch(input: $input) {
-      commit {
-        oid
-      }
+      clientMutationId
     }
   }
 `;
@@ -110,14 +108,17 @@ export function createGitHubSignedCommit(branch, message, files) {
     fail(`GitHub could not create the signed commit: ${errors}`);
   }
 
-  const commitSha = result.data?.createCommitOnBranch?.commit?.oid;
-  if (!commitSha) {
-    fail("GitHub did not return a commit SHA for the signed commit request.");
+  if (!result.data?.createCommitOnBranch) {
+    fail("GitHub did not confirm creation of the signed commit.");
+  }
+
+  command("git", ["fetch", "origin", branch]);
+  const commitSha = output("git", ["rev-parse", `origin/${branch}`]);
+  if (commitSha === remoteHead) {
+    fail("GitHub did not update the branch with the signed commit.");
   }
 
   verifyGitHubSignature(commitSha, tokenEnvironment);
-
-  command("git", ["fetch", "origin", branch]);
   command("git", ["reset", "--hard", commitSha]);
   return commitSha;
 }
